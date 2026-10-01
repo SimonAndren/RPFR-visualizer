@@ -1,0 +1,187 @@
+[project]
+name = "rpfr-visualizer"
+version = "0.1.0"
+description = "Access, search and visualize the QM9s-RPFR isotope effects database"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    {name = "Simon Andren", email = "sandren@caltech.edu"}
+]
+keywords = ["isotope", "chemistry", "fractionation", "rpfr", "qm9s", "computational-chemistry"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "Topic :: Scientific/Engineering :: Visualization",
+]
+
+dependencies = [
+    "h5py>=3.10",
+    "pandas>=2.0",
+    "numpy>=1.24",
+    "tqdm>=4.65",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4",
+    "pytest-cov>=4.1",
+    "ruff>=0.1",
+    "black>=23.0",
+    "mypy>=1.5",
+    "ipython>=8.12",
+    "jupyterlab>=4.0",
+    "nbstripout>=0.7",
+    "pre-commit>=3.5",
+]
+viz = [
+    "matplotlib>=3.7",
+    "py3Dmol>=2.0",
+    "rdkit>=2023.9",
+    "ipywidgets>=8.0",
+]
+# The standalone GUI renders in a browser: it needs RDKit for 2D depictions and
+# py3Dmol for the 3D viewer, but no ipywidgets and no matplotlib.
+gui = [
+    "py3Dmol>=2.0",
+    "rdkit>=2023.9",
+]
+# Drives the real UI in a browser. Developer-only: nobody running
+# `rpfr-visualizer gui` needs it, and tests/e2e skips itself when it is absent.
+# playwright ships its own Node driver, so no system node is required.
+e2e = [
+    "pytest-playwright>=0.5",
+]
+# Everything a *user* of the package could want: the browser explorer and the
+# notebook visualisation stack. Deliberately no
+# dev or e2e -- `pip install rpfr-visualizer[all]` should not drop pytest, ruff,
+# mypy, jupyterlab and a browser driver into somebody's analysis environment.
+all = [
+    "rpfr-visualizer[gui,viz]",
+]
+# Everything, including the toolchain. This is the one for a clone you intend
+# to work on; `uv sync --all-extras` gets you the same thing.
+dev-all = [
+    "rpfr-visualizer[all,dev,e2e]",
+]
+
+[project.scripts]
+rpfr-visualizer = "rpfr_visualizer.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/SimonAndren/RPFR-visualizer"
+Repository = "https://github.com/SimonAndren/RPFR-visualizer"
+Issues = "https://github.com/SimonAndren/RPFR-visualizer/issues"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/rpfr_visualizer"]
+
+# No force-include table here, deliberately. Hatchling already ships every
+# non-Python file that lives inside the package directory -- the two static/
+# trees and data/*.json -- so listing them again did nothing except invite the
+# list to go stale as assets were added. tests/unit/test_packaging.py builds a
+# wheel and checks each one is really in it, which is the only way this can be
+# verified from a source tree that has the files either way.
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --strict-markers --cov=rpfr_visualizer --cov-report=term-missing --cov-report=xml"
+testpaths = ["tests"]
+pythonpath = ["src"]
+# --strict-markers is on, so every marker has to be declared here or using it
+# is a hard error rather than a warning.
+markers = [
+    "e2e: drives the real UI in a browser; needs the 'e2e' extra",
+    "gallery: writes screenshots; only runs with --gallery",
+    "smoke: runs against the real data in data/, when it is present",
+]
+
+[tool.coverage.run]
+source = ["src/rpfr_visualizer"]
+omit = ["*/tests/*", "*/test_*.py", "*/viz/static/*"]
+
+[tool.coverage.report]
+# A ratchet, not an aspiration: set to what the suite achieves today so that a
+# change which drops coverage fails rather than being noticed a release later.
+# Raise it when the number rises; never lower it to make a red build green.
+fail_under = 82
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "W",
+    "F",
+    "I",
+    "B",
+    "C4",
+    "UP",
+]
+ignore = [
+    "E501",
+    "B008",
+    "C901",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"tests/**/*.py" = ["F401", "F811"]
+
+[tool.black]
+line-length = 100
+target-version = ['py310', 'py311', 'py312']
+include = '\.pyi?$'
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = [
+    "h5py.*",
+]
+ignore_missing_imports = true
+
+# rdkit-stubs ships a syntax error (non-default arg after default) that aborts
+# the whole run before our code is checked.
+[[tool.mypy.overrides]]
+module = [
+    "rdkit.*",
+]
+ignore_missing_imports = true
+follow_imports = "skip"
+follow_imports_for_stubs = true

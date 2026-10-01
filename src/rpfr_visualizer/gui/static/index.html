@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Isotope fingerprints</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body data-view="explore">
+
+<header class="bar">
+  <h1>Isotope fingerprints</h1>
+  <nav class="tabs" id="views">
+    <button type="button" data-view="explore" class="on">Explore</button>
+    <button type="button" data-view="dataset">Dataset</button>
+    <button type="button" data-view="download">Download</button>
+    <button type="button" data-view="guide">Guide</button>
+  </nav>
+  <label class="chip">
+    <span class="muted">dataset</span>
+    <select id="dataset"></select>
+    <span class="badge" id="dataset-subsample" hidden></span>
+    <span class="muted" id="dataset-count"></span>
+  </label>
+</header>
+
+<!-- Setup: shown instead of the app when there is no data to open. -->
+<section id="setup" hidden>
+  <div class="card wide">
+    <h2>Point this at your QM9s-RPFR data</h2>
+    <p class="lede">It only has to be done once.</p>
+    <div id="setup-report"></div>
+    <div id="setup-problems"></div>
+    <h3>Choose a search index</h3>
+    <p class="muted small">Without one, molecules can only be opened by ID.</p>
+    <div id="setup-indexes"></div>
+    <h3>Or type a path</h3>
+    <p class="muted small">
+      A <code>.h5</code> file, a data directory, or an external-drive root.
+    </p>
+    <div class="row">
+      <input type="text" id="setup-path" placeholder="path to a .h5 file or a data directory" size="44">
+      <button type="button" id="setup-use" class="primary">Use this</button>
+    </div>
+    <p class="muted small" id="setup-remember-note"></p>
+  </div>
+</section>
+
+<!-- Explore -->
+<main id="explore">
+  <aside class="side">
+    <h2>Find a molecule</h2>
+    <div class="row">
+      <input type="search" id="q" placeholder="ethanol, C2H6O, CCO, an ID…" autocomplete="off">
+      <button type="button" id="go" class="primary" aria-label="Search">Search</button>
+    </div>
+    <p class="muted small">
+      A name, formula, SMILES, molecule ID, or <code>fg:</code> / <code>smarts:</code>
+    </p>
+    <p class="muted small" id="examples" hidden></p>
+
+    <label class="check"><input type="checkbox" id="qc_pass"> Only molecules that passed QC</label>
+
+    <div class="groups">
+      <div class="groups-head">
+        <span>Browse by group</span>
+        <span class="segmented" id="fg-mode">
+          <button type="button" data-mode="any" class="on">any</button>
+          <button type="button" data-mode="all">all</button>
+        </span>
+      </div>
+      <div id="preset-groups" class="check-list"></div>
+      <p class="muted small" id="fg-note"></p>
+    </div>
+
+    <div id="results-head" class="results-head"></div>
+    <ol id="results" class="results"></ol>
+    <p id="results-note" class="muted small"></p>
+  </aside>
+
+  <section class="stage">
+    <div class="controls">
+      <label class="field">
+        <span>Element</span>
+        <select id="element"></select>
+      </label>
+      <label class="field">
+        <span>Show</span>
+        <select id="kind"></select>
+      </label>
+      <label class="field" id="reference-field" hidden>
+        <span>compared to</span>
+        <select id="reference"></select>
+      </label>
+      <label class="field" id="anchor-field" hidden>
+        <span>reference site</span>
+        <select id="anchor"></select>
+      </label>
+      <label class="field">
+        <span>at</span>
+        <select id="temperature"></select>
+      </label>
+      <label class="field" id="temperature-custom-field" hidden>
+        <span>K</span>
+        <input type="text" id="temperature-custom" size="9" inputmode="decimal">
+      </label>
+      <!-- Absent on a stored temperature, not disabled: nothing is fitted
+           there, so the control would be asking a question with no answer. -->
+      <label class="field" id="beta-method-field" hidden>
+        <span>fitted by</span>
+        <select id="beta_method"></select>
+      </label>
+      <details class="more">
+        <summary>More</summary>
+        <label class="check"><input type="checkbox" id="show_hydrogens"> Show hydrogen atoms</label>
+        <label class="check"><input type="checkbox" id="show_labels"> Number the atoms</label>
+      </details>
+    </div>
+
+    <p id="provenance" class="provenance"></p>
+    <div id="notices"></div>
+
+    <div id="panes" class="panes"></div>
+    <p id="legend" class="legend"></p>
+
+    <nav class="tabs" id="panels">
+      <button type="button" data-panel="molecule" class="on">Molecule</button>
+      <button type="button" data-panel="ranked">Ranked sites</button>
+      <button type="button" data-panel="quality">Data quality</button>
+      <button type="button" data-panel="derived">Derived</button>
+    </nav>
+
+    <div id="panel-molecule" class="panel">
+      <pre id="site-table" class="numeric"></pre>
+    </div>
+
+    <div id="panel-ranked" class="panel" hidden>
+      <div class="row">
+        <span class="segmented" id="scope">
+          <button type="button" data-scope="results" class="on">all results</button>
+          <button type="button" data-scope="molecule">just this molecule</button>
+        </span>
+        <label class="field">
+          <span>Show top</span>
+          <select id="top_n">
+            <option>10</option><option selected>15</option><option>25</option>
+            <option>50</option><option>100</option>
+          </select>
+        </label>
+      </div>
+      <p id="rank-caption"></p>
+      <div id="ranks"></div>
+      <p class="muted small">Largest first. Hydrogens are ranked only when Element is H.</p>
+    </div>
+
+    <div id="panel-derived" class="panel" hidden></div>
+
+    <div id="panel-quality" class="panel" hidden>
+      <p id="qc-verdict"></p>
+      <pre id="qc-text" class="numeric"></pre>
+    </div>
+  </section>
+</main>
+
+<!-- Download -->
+<main id="download-view" hidden>
+  <div class="card wide">
+    <h2>Download</h2>
+    <p class="lede">
+      A CSV with one row per site, using the quantity and element set on Explore.
+    </p>
+
+    <h3>What to include</h3>
+    <span class="segmented" id="dl-scope">
+      <button type="button" data-scope="molecule" class="on">this molecule</button>
+      <button type="button" data-scope="results">current search results</button>
+    </span>
+    <h3>At which temperatures</h3>
+    <label class="field">
+      <span>temperatures (K)</span>
+      <input type="text" id="download-temperatures" size="34"
+             placeholder="leave blank for the one on screen">
+    </label>
+    <p class="muted small">Comma-separated, as in <code>250, 273.15, 298.15</code>.</p>
+
+    <p id="download-summary" class="lede"></p>
+    <p id="download-note" class="muted small"></p>
+    <div class="row">
+      <button type="button" id="download-go" class="primary">Download CSV</button>
+      <span class="muted small" id="download-filename"></span>
+    </div>
+
+    <h3>Columns</h3>
+    <p class="muted small" id="download-columns"></p>
+  </div>
+</main>
+
+<!-- Dataset -->
+<main id="dataset-view" hidden>
+  <div class="card wide">
+    <h2>What's in this data</h2>
+    <div id="stats-datasets"></div>
+    <h3>Temperatures</h3>
+    <p id="stats-temperatures" class="numeric small"></p>
+    <p class="muted small">
+      Other temperatures are fitted, by default with a local quadratic through
+      the four nearest stored points.
+    </p>
+    <h3>Value ranges</h3>
+    <p class="muted small" id="stats-sample-note"></p>
+    <div id="stats-elements"></div>
+    <h3>Functional groups</h3>
+    <div id="stats-groups"></div>
+    <p class="muted small" id="stats-provenance"></p>
+  </div>
+</main>
+
+<!-- Guide -->
+<main id="guide-view" hidden>
+  <div class="card wide">
+    <h2>Guide</h2>
+
+    <h3>The data</h3>
+    <p>
+      Every atom has a <b>β</b>, its reduced partition function ratio (RPFR), at
+      15 temperatures from 20 to 500 K. A larger β means the site favours the
+      heavy isotope (²H, ¹³C, ¹⁵N, ¹⁸O). Values come from DFT harmonic
+      frequencies, with translations and rotations removed by Eckart projection.
+    </p>
+
+    <h3>Quantities</h3>
+    <table class="plain">
+      <tr><td><code>β</code></td><td>the stored value</td></tr>
+      <tr><td><code>α</code></td><td>β relative to a reference site</td></tr>
+      <tr><td><code>1000 ln α</code></td><td>α in per mil</td></tr>
+    </table>
+    <p class="muted small">
+      The reference is the element's mean in this molecule, the dataset average,
+      or a site you choose.
+    </p>
+
+    <h3>Temperatures</h3>
+    <p>
+      Stored temperatures are read directly. Others are fitted from ln β against
+      1/T, by default with a local quadratic through the four nearest stored
+      points. Nothing is stored between 20 K and 60 K, so fits there are unreliable.
+    </p>
+
+    <h3>Pictures</h3>
+    <p>
+      <b>3D:</b> colour is the element; opacity is the magnitude of the RPFR
+      relative to that element; labels give the value. <b>2D:</b> a skeletal
+      structure numbered like the table.
+    </p>
+    <p>
+      If the stored SMILES does not match the geometry, the 2D carries a warning.
+      The 3D view always uses the real coordinates.
+    </p>
+
+    <h3>Derived</h3>
+    <ul>
+      <li><b>β against temperature:</b> stored points and the fit between them.</li>
+      <li><b>Mass-law exponent λ:</b> ¹⁷O against ¹⁸O, for oxygen only.</li>
+      <li>
+        <b>Clumping Δ:</b> the excess of a doubly substituted isotopologue's β
+        over the product of the two singly substituted ones, in per mil:
+        Δ<sub>ij</sub> = 1000 ln(β<sub>ij</sub> / β<sub>i</sub>β<sub>j</sub>).
+      </li>
+    </ul>
+    <p class="muted small">Mass law and clumping exist only at stored temperatures.</p>
+
+    <h3>Good to know</h3>
+    <ul>
+      <li>Search lists the first 200 matches. Downloads include all of them.</li>
+      <li>Few molecules have common names. Search by formula, SMILES or group.</li>
+      <li>The 1% subsample holds about 1,300 molecules.</li>
+    </ul>
+
+    <h2>Functional groups</h2>
+    <p class="muted small" id="guide-groups-note"></p>
+    <div id="guide-groups" class="fg-grid"></div>
+
+    <h2>Citing</h2>
+    <p class="muted small">
+      Andren, S. <i>rpfr-visualizer</i>. Full citation in <code>CITATION.cff</code>.
+    </p>
+  </div>
+</main>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

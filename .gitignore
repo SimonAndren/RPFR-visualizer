@@ -1,0 +1,105 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+CLAUDE.md
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv
+
+# External dependencies
+vendor/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+*.cover
+.hypothesis/
+coverage.xml
+coverage.json
+*.log
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+notebooks/.ipynb_checkpoints/
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+
+# Project-specific: Large data files
+*.h5
+*.hdf5
+data/raw/*.h5
+data/raw/*.hdf5
+
+# Project-specific: Local search / name-resolve caches (rebuild with scripts)
+data/cache/
+docs/data/cache/
+
+# Project-specific: Release staging. Exactly the bytes that get uploaded as
+# release assets, assembled by scripts/make_release_manifest.py. Hundreds of
+# megabytes, and derived from data/raw, so it is rebuilt rather than tracked.
+data/release/
+
+# Project-specific: Generated indices
+*.parquet
+*.arrow
+data/processed/*.parquet
+data/processed/*.arrow
+data/processed/*.csv
+
+# Project-specific: Outputs
+notebooks/figures/
+data/processed/analysis/
+
+# Project-specific: Internal development artifacts
+reviews/
+legacy/
+NOTES.md
+
+# Development logs
+devlog/
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+.cache/

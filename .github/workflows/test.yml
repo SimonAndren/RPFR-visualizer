@@ -1,0 +1,56 @@
+name: Tests
+
+on:
+  # Feature branches too: work that only meets CI at merge time meets it too
+  # late, and every branch in this repo is a feature or fix branch by policy.
+  push:
+    branches: [main, develop, 'feature/**', 'fix/**', 'chore/**', 'test/**', 'refactor/**']
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          uv sync --all-extras
+
+      # The e2e suite drives a real browser. Locally that is the developer's
+      # own Chrome; on a runner, relying on whichever Chrome an image happens
+      # to ship makes the browser tests silently skip or fail on an image
+      # change, so install Playwright's own and point the suite at it.
+      - name: Install a browser for the e2e suite
+        run: uv run playwright install --with-deps chromium
+
+      - name: Run tests with pytest
+        env:
+          RPFR_VISUALIZER_E2E_CHANNEL: chromium
+        run: |
+          uv run pytest tests/ -v --cov=rpfr_visualizer --cov-report=xml --cov-report=term-missing
+
+      - name: Upload coverage to Codecov
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
