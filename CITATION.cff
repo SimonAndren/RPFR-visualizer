@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "RPFR-visualizer: a browser explorer for the QM9s-RPFR isotope effects database"
+abstract: >-
+  A local browser explorer and Python package for the QM9s-RPFR database of
+  per-atom reduced partition function ratios. Reads the QM9s HDF5 files
+  (schema 2.2), searches them by identifier, composition, functional group and
+  SMARTS substructure, and shows per-site values, temperature dependence,
+  clumping and mass laws in 3D and 2D.
+type: software
+authors:
+  - family-names: Andren
+    given-names: Simon
+    email: sandren@caltech.edu
+    affiliation: California Institute of Technology
+repository-code: "https://github.com/SimonAndren/RPFR-visualizer"
+url: "https://github.com/SimonAndren/RPFR-visualizer"
+license: MIT
+version: 0.1.0
+date-released: "2026-10-01"
+keywords:
+  - isotope effects
+  - reduced partition function ratio
+  - isotope fractionation
+  - computational chemistry
+  - cheminformatics
+  - scientific visualization
