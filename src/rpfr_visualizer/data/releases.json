@@ -1,0 +1,23 @@
+{
+  "manifest_version": 1,
+  "tiers": {
+    "qm9s-1pct": {
+      "description": "QM9s at 1% (1,298 molecules, Eckart-projected TR removal) plus the search index built over exactly that file. Needs no external drive.",
+      "base_url": "https://github.com/SimonAndren/RPFR-visualizer/releases/download/v0.1.0",
+      "artifacts": [
+        {
+          "name": "qm9s_v2.2_1pt.h5",
+          "subdir": "raw",
+          "size_bytes": 95288872,
+          "sha256": "d1a353307b060b8e9bc31a17b93406f454a9d873c8cc133e7f13e57a0798e56d"
+        },
+        {
+          "name": "qm9s_rpfr_index.sqlite",
+          "subdir": "cache",
+          "size_bytes": 933888,
+          "sha256": "ef0178a69300004b55112712067e084f8720028c6eacbc2ed9c0a6a05af60f22"
+        }
+      ]
+    }
+  }
+}
