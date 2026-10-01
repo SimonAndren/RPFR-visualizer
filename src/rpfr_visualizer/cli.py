@@ -243,7 +243,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="rpfr-visualizer", description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
 
-    gui = sub.add_parser("gui", help="open the isotope fingerprint explorer in a browser")
+    gui = sub.add_parser("gui", help="open the RPFR visualizer in a browser")
     # Default None, not "data": a hardcoded relative path resolves against the
     # process working directory, which is the bug this whole layer avoids.
     gui.add_argument(
