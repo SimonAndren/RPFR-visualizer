@@ -1,4 +1,4 @@
-/* Isotope fingerprints — the client.
+/* RPFR visualizer — the client.
  *
  * Two rules run through all of this.
  *
