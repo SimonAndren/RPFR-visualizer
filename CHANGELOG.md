@@ -7,7 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- Empirical models of per-site `1000 ln β`, trained on the dataset and shown in
+  place of the DFT values from a **β from** menu in the explorer. Two baselines:
+  bond additivity (ridge regression on bond-path counts) and cluster mean (the
+  mean over training sites with the same local environment). See
+  [docs/models.md](docs/models.md)
+- `rpfr-visualizer models split | train | list`: one shared split by molecule
+  (100k train / 24k test / the rest for validation), validation tuning, and
+  scoring on the test set
+- The explorer shows whether the open molecule is in the models' training,
+  validation or test set. The CSV download has a `beta_source` column
 
 ## [0.1.0] - 2026-10-01
 

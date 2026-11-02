@@ -10,7 +10,7 @@ serves a local browser explorer over the same Python API.
                  \                       |                       /
                   ----------  ExplorerController (no UI)  --------
                                          |
-         analysis/  ·  qc/  ·  io/search/ (SQLite index)  ·  viz/ (2D, 3D)
+   analysis/ · qc/ · empirical/ · io/search/ (SQLite index) · viz/ (2D, 3D)
                                          |
                               io/ (QM9sDataset, providers)
                                          |
@@ -47,6 +47,19 @@ frequencies, assignment, annotation, RPFR, provenance). See [qc.md](qc.md).
 | `functional_groups.py` | Curated SMARTS presets and site-level group matching |
 | `fingerprint_explorer.py` | Site ranking and local-environment grouping |
 | `stats.py` | Dataset statistics |
+
+## Empirical models (`empirical/`)
+
+| Module | Role |
+|--------|------|
+| `split.py` | `DatasetSplit`: the shared train / validation / test split, by molecule |
+| `sites.py` | `SiteTable`: per-site `1000 ln β` with interned bond paths and environments |
+| `base.py` | `EmpiricalModel`, the kind registry, the pickle-free `.npz` format |
+| `bond_additivity.py`, `cluster_mean.py` | The two baseline models |
+| `train.py` | Fit, tune on validation, score on test |
+| `store.py` | `ModelStore` and `apply_model`, which the explorer uses to swap β |
+
+It depends only on `io/`. The explorer controller uses it. See [models.md](models.md).
 
 ## Visualization (`viz/`)
 

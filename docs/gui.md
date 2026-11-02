@@ -218,6 +218,15 @@ rows were fitted.
 CSV is the only format. Excel needs another dependency and dies at 1,048,576
 rows; a full site table at one temperature is millions of rows.
 
+## Model predictions instead of dataset values
+
+Once models have been trained into `<data dir>/models`, a **β from** menu
+appears in the header. Choosing a model reloads every open molecule with that
+model's predicted β, and a note above the picture states the model's test
+error. A badge shows whether the open molecule is in the models' training,
+validation or test set. Clumping and mass-law are not predicted. See
+[models.md](models.md).
+
 ## The Dataset page
 
 Molecule counts, structure coverage, the QC split, the temperature grid, the
