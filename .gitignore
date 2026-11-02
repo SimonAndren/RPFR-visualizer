@@ -79,6 +79,10 @@ docs/data/cache/
 # megabytes, and derived from data/raw, so it is rebuilt rather than tracked.
 data/release/
 
+# Trained empirical models and their split: derived from the data, retrained
+# rather than tracked.
+data/models/
+
 # Project-specific: Generated indices
 *.parquet
 *.arrow

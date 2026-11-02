@@ -112,6 +112,10 @@ code { font: 12.5px/1.4 var(--mono); }
   border-bottom: 1px solid var(--border);
 }
 .bar .chip { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+/* The β-source chip follows the dataset chip rather than splitting the space. */
+.bar .chip + .chip { margin-left: 0; }
+.bar .chip > span { white-space: nowrap; }
+.bar .chip select { max-width: 26ch; }
 
 main {
   display: grid;
@@ -424,3 +428,8 @@ pre { margin: 8px 0; white-space: pre-wrap; word-break: break-word; }
   border: 1px solid var(--warn);
   background: var(--sunk);
 }
+
+/* Which split the open molecule was in. A test-set molecule is an honest look
+ * at a model; a training-set one is not, so training reads as the warning. */
+.badge[data-split="test"] { color: var(--ok); border-color: var(--ok); }
+.badge[data-split="val"] { color: var(--ink-2); border-color: var(--border-strong); }

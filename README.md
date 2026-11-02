@@ -60,6 +60,7 @@ rpfr-visualizer gui --drive /path/to/Processed-Data --index data/cache/qm9s_rpfr
 | [docs/gui.md](docs/gui.md) | The explorer: quantities, temperatures and fits, pictures, downloads |
 | [docs/explorer_tutorial.ipynb](docs/explorer_tutorial.ipynb) | A runnable tour of the Python API behind the app |
 | [docs/quickstart.ipynb](docs/quickstart.ipynb) | Load a file, read β, compute statistics |
+| [docs/models.md](docs/models.md) | Empirical models: the train/validation/test protocol, training, scores |
 | [docs/search.md](docs/search.md) | Query grammar and the search index |
 | [docs/schema.md](docs/schema.md) | HDF5 field reference (schema 2.2) |
 | [docs/qc.md](docs/qc.md) | QC checks, tiers and thresholds |

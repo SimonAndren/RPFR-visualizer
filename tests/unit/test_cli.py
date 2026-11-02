@@ -26,6 +26,9 @@ def test_every_subcommand_binds_a_handler() -> None:
         ["index", "build"],
         ["index", "info", "x.sqlite"],
         ["index", "verify", "x.sqlite"],
+        ["models", "split", "--data", "x.h5"],
+        ["models", "train", "cluster_mean", "--data", "x.h5"],
+        ["models", "list"],
     ):
         assert callable(parse(argv).func), argv
 
@@ -163,3 +166,56 @@ def test_verify_only_reports_missing_files_without_downloading(tmp_path: Path) -
     code = _cmd_data_fetch(parse(["data", "fetch", "--verify-only", "--dest", str(tmp_path)]))
 
     assert code == 1
+
+
+# --- models -----------------------------------------------------------------
+
+
+def test_models_split_defaults_to_the_100k_24k_protocol() -> None:
+    args = parse(["models", "split", "--data", "x.h5"])
+    assert (args.n_train, args.n_test, args.seed) == (100_000, 24_000, 0)
+
+
+def test_models_split_train_list_round_trip(synthetic_h5_path, tmp_path, capsys) -> None:
+    from rpfr_visualizer.cli import main
+
+    split = tmp_path / "split.json"
+    data = str(synthetic_h5_path)
+    assert (
+        main(
+            [
+                "models",
+                "split",
+                "--data",
+                data,
+                "--n-train",
+                "1",
+                "--n-test",
+                "1",
+                "--out",
+                str(split),
+            ]
+        )
+        == 0
+    )
+    assert (
+        main(["models", "train", "cluster_mean", "--data", data, "--split", str(split), "-q"]) == 0
+    )
+    assert (tmp_path / "cluster_mean.npz").is_file()
+    capsys.readouterr()
+    assert main(["models", "list", "--dir", str(tmp_path)]) == 0
+    assert "Cluster mean" in capsys.readouterr().out
+
+
+def test_models_split_explains_a_file_too_small_for_the_protocol(synthetic_h5_path) -> None:
+    from rpfr_visualizer.cli import main
+
+    with pytest.raises(SystemExit, match="--n-train"):
+        main(["models", "split", "--data", str(synthetic_h5_path), "--out", "/dev/null"])
+
+
+def test_models_list_with_nothing_trained_says_how(tmp_path, capsys) -> None:
+    from rpfr_visualizer.cli import main
+
+    assert main(["models", "list", "--dir", str(tmp_path)]) == 1
+    assert "models train" in capsys.readouterr().out

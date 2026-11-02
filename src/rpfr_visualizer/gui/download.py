@@ -58,6 +58,10 @@ CSV_COLUMNS: tuple[str, ...] = (
     "reference_beta",
     "reference_mode",
     "local_smiles",
+    #: ``dataset`` or ``model:<name>``: whether ``beta`` and ``value`` were read
+    #: from the file or predicted. Without it a model export and a dataset
+    #: export are indistinguishable files.
+    "beta_source",
 )
 
 #: How many temperatures one export may cover. The cost is one analysis per
@@ -262,17 +266,11 @@ def _molecules(controller: ExplorerController, scope: str) -> Iterator[LoadedMol
     if not keys:
         raise ValueError("Search for molecules first.")
 
-    provider = controller.provider
     for dataset, key in keys:
         if dataset != controller.dataset:
             continue
         try:
-            yield LoadedMolecule(
-                dataset=dataset,
-                key=key,
-                molecule=provider.get_molecule_by_key(key),
-                arrays=provider.load_arrays_by_key(key),
-            )
+            yield controller.fetch(key)
         except (KeyError, OSError):
             continue
 
@@ -382,6 +380,7 @@ def _row(
         "reference_beta": _fmt(site.reference_value),
         "reference_mode": (state.reference_mode if state.needs_reference() else ""),
         "local_smiles": local,
+        "beta_source": getattr(loaded.molecule, "source", "") or "dataset",
     }
 
 

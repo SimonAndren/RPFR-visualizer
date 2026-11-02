@@ -47,7 +47,12 @@ def test_writable_fields_track_the_dataclass() -> None:
     This fails the moment a field is added to ExplorerState, which is the point:
     a setting the server silently refuses to accept is worse than a loud one.
     """
-    expected = {f.name for f in fields(ExplorerState)} - {"dataset", "mol_a", "mol_b"}
+    expected = {f.name for f in fields(ExplorerState)} - {
+        "dataset",
+        "beta_source",
+        "mol_a",
+        "mol_b",
+    }
     assert set(WRITABLE_FIELDS) == expected
 
 
@@ -66,7 +71,7 @@ def test_state_payload_never_leaks_a_molecule(session: ExplorerSession) -> None:
         payload = state_payload(controller)
 
     slot = payload["slots"]["a"]
-    assert set(slot) == {"dataset", "key", "label", "n_atoms", "smiles", "qc_pass"}
+    assert set(slot) == {"dataset", "key", "label", "n_atoms", "smiles", "qc_pass", "split"}
     # A serialized Molecule would drag its per-site records along with it, and
     # each site carries a beta vector over the whole temperature grid. Matched
     # as a JSON key rather than a bare substring, so an unrelated setting whose
