@@ -35,11 +35,17 @@ from rpfr_visualizer.analysis.reference import (
     StandardReference,
 )
 from rpfr_visualizer.analysis.temperature import beta_curve, grid_index
+from rpfr_visualizer.empirical.store import ModelStore, apply_model
 from rpfr_visualizer.io.molecule_index import MoleculeIndex, build_or_load_index, index_cache_path
-from rpfr_visualizer.io.providers import DatasetCatalog, HDF5Provider
+from rpfr_visualizer.io.providers import DatasetCatalog, HDF5Provider, MoleculeArrays
 from rpfr_visualizer.viz.colors import quantity_symbol
 from rpfr_visualizer.viz.electron_cloud import EnrichmentView
-from rpfr_visualizer.viz.explorer.state import ExplorerState, LoadedMolecule, ReferenceMode
+from rpfr_visualizer.viz.explorer.state import (
+    DATASET_SOURCE,
+    ExplorerState,
+    LoadedMolecule,
+    ReferenceMode,
+)
 from rpfr_visualizer.viz.qc_strip import qc_panel_text, run_qc_for_key, stored_qc_flags
 
 
@@ -85,6 +91,7 @@ class ExplorerController:
         index_cache: Path | str | None = None,
         data_dir: Path | str | None = None,
         max_stats_molecules: int | None = 200,
+        models_dir: Path | str | None = None,
     ) -> None:
         if isinstance(provider_or_catalog, DatasetCatalog):
             self.catalog = provider_or_catalog
@@ -111,6 +118,12 @@ class ExplorerController:
         # statistics that are already on disk.
         self.data_dir = Path(data_dir) if data_dir is not None else Path("data")
         self._max_stats_molecules = max_stats_molecules
+        #: Trained empirical models the β can be switched to. Looked for under
+        #: the data directory unless pointed elsewhere; an absent directory
+        #: simply means "dataset values only".
+        self.models = ModelStore(
+            Path(models_dir) if models_dir is not None else self.data_dir / "models"
+        )
         # Per-dataset statistics are expensive on full-size files, so they are
         # built on first use and kept per dataset rather than eagerly.
         self._stats_by_dataset: dict[str, ElementStatsCache] = {}
@@ -216,19 +229,91 @@ class ExplorerController:
             self._index = build_or_load_index(self.catalog, self._index_cache)
         return self._index
 
+    # ------------------------------------------------------------ β source
+
+    def available_beta_sources(self) -> tuple[str, ...]:
+        """``dataset`` followed by every trained model found."""
+        return (DATASET_SOURCE, *self.models.names())
+
+    def use_beta_source(self, name: str) -> None:
+        """Take β from the dataset or from a trained model.
+
+        Everything already loaded is reloaded under the new source, so the two
+        slots and the ranking pool never mix dataset values with predictions.
+        """
+        if name not in self.available_beta_sources():
+            raise KeyError(
+                f"No β source {name!r}. Available: {', '.join(self.available_beta_sources())}"
+            )
+        if name == self.state.beta_source:
+            return
+        if name != DATASET_SOURCE:
+            self.models.get(name)  # load it now, so a broken file fails here
+        self.state.beta_source = name
+        state = self.state
+        if state.mol_a is not None:
+            state.mol_a = self.fetch(state.mol_a.key)
+            self._structured_qc = None
+        if state.mol_b is not None:
+            state.mol_b = self.fetch(state.mol_b.key)
+        if self.match_pool:
+            self.load_pool([m.key for m in self.match_pool])
+        self.last_ranks = []
+
+    def split_of(self, key: str) -> str | None:
+        """Whether molecule *key* was in the models' train, val or test split.
+
+        Answered for the model being shown, which is only vouched for when it
+        was trained on the split saved beside it. On dataset values, answered
+        from that saved split alone.
+        """
+        source = self.state.beta_source
+        return self.models.split_of(key, None if source == DATASET_SOURCE else source)
+
+    def fetch(self, key: str) -> LoadedMolecule:
+        """Read molecule *key* from the active dataset under the current β source.
+
+        Under a model, the clumping and mass-law arrays are dropped rather than
+        passed through: they are the dataset's, no model predicts them, and
+        showing them beside predicted β would mix two sources on one screen.
+        """
+        provider = self.provider
+        molecule = provider.get_molecule_by_key(key)
+        arrays = provider.load_arrays_by_key(key)
+        source = self.state.beta_source
+        if source != DATASET_SOURCE:
+            molecule = apply_model(molecule, self.models.get(source))
+            arrays = MoleculeArrays()
+        return LoadedMolecule(dataset=self.state.dataset, key=key, molecule=molecule, arrays=arrays)
+
+    def _missing_array_note(self, what: str) -> str:
+        """Why a derived panel is empty: the dataset lacks it, or a model is shown."""
+        if self.state.beta_source != DATASET_SOURCE:
+            return f"Models predict β only, not {what}. Switch β to the dataset to see it."
+        return f"This dataset stores no {what} values."
+
+    def beta_source_note(self) -> str:
+        """One sentence saying where the β on screen come from, under a model."""
+        source = self.state.beta_source
+        if source == DATASET_SOURCE:
+            return ""
+        info = self.models.infos().get(source)
+        label = info.label if info else source
+        note = f"β are predicted by the {label} model, not read from the dataset."
+        if info is not None:
+            mae = info.test_mae()
+            if mae:
+                parts = ", ".join(f"{el} {v:.2f}" for el, v in mae.items())
+                note += f" Test MAE in 1000 ln β at 298 K (‰): {parts}."
+        return note + " Clumping and mass-law are not predicted."
+
     # -------------------------------------------------------------- selection
 
     def load(self, key: str, *, slot: str = "a") -> LoadedMolecule:
         """Load a molecule from the active dataset into slot ``a`` or ``b``."""
         if slot not in ("a", "b"):
             raise ValueError(f"slot must be 'a' or 'b', got {slot!r}")
-        provider = self.provider
-        loaded = LoadedMolecule(
-            dataset=self.state.dataset,
-            key=key,
-            molecule=provider.get_molecule_by_key(key),
-            arrays=provider.load_arrays_by_key(key),
-        )
+        loaded = self.fetch(key)
         if slot == "a":
             self.state.mol_a = loaded
             self._structured_qc = None
@@ -255,19 +340,11 @@ class ExplorerController:
         if clear:
             self.match_pool.clear()
         existing = {m.key for m in self.match_pool}
-        provider = self.provider
         for key in keys:
             if key in existing:
                 continue
             try:
-                self.match_pool.append(
-                    LoadedMolecule(
-                        dataset=self.state.dataset,
-                        key=key,
-                        molecule=provider.get_molecule_by_key(key),
-                        arrays=provider.load_arrays_by_key(key),
-                    )
-                )
+                self.match_pool.append(self.fetch(key))
                 existing.add(key)
             except (KeyError, OSError):
                 # A hit that will not load should not abort the whole pool.
@@ -516,6 +593,8 @@ class ExplorerController:
         fitted, not read from the file, and the user should know.
         """
         messages: list[str] = []
+        if self.state.beta_source != DATASET_SOURCE:
+            messages.append(self.beta_source_note())
         if not self.state.temperature_is_on_grid(self.temperatures):
             messages.append(self.temperature_note())
         return tuple(messages)
@@ -776,7 +855,7 @@ class ExplorerController:
         del indices  # mass law picks its own sites; see MASS_LAW_ELEMENT
         arrays = loaded.arrays
         if arrays is None or getattr(arrays, "mass_law", None) is None:
-            return {"available": False, "message": "This dataset stores no mass-law values."}
+            return {"available": False, "message": self._missing_array_note("mass-law")}
 
         oxygens = [
             site.atom_index
@@ -824,7 +903,7 @@ class ExplorerController:
     ) -> dict[str, Any]:
         arrays = loaded.arrays
         if arrays is None or getattr(arrays, "clumping", None) is None:
-            return {"available": False, "message": "This dataset stores no clumping values."}
+            return {"available": False, "message": self._missing_array_note("clumping")}
         if not on_grid:
             return {"available": False, "message": off_grid_note}
 

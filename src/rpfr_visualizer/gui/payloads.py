@@ -25,15 +25,16 @@ from rpfr_visualizer.analysis.temperature import (
 from rpfr_visualizer.viz.colors import quantity_symbol
 from rpfr_visualizer.viz.depict import site_anchor_options
 from rpfr_visualizer.viz.explorer import ExplorerController, ExplorerState
-from rpfr_visualizer.viz.explorer.state import ELEMENTS
+from rpfr_visualizer.viz.explorer.state import DATASET_SOURCE, ELEMENTS
 
 #: Fields a client may write. Derived from the dataclass rather than listed, so
 #: it cannot drift when a field is added.
 #:
 #: ``dataset`` routes through its own endpoint because switching datasets also
-#: resets the selection; ``mol_a``/``mol_b`` hold whole molecules and are set by
+#: resets the selection, and ``beta_source`` through its own because switching
+#: it reloads every molecule; ``mol_a``/``mol_b`` hold whole molecules and are set by
 #: loading, not by assignment.
-_NOT_WRITABLE = {"dataset", "mol_a", "mol_b"}
+_NOT_WRITABLE = {"dataset", "beta_source", "mol_a", "mol_b"}
 
 WRITABLE_FIELDS: frozenset[str] = frozenset(
     f.name for f in fields(ExplorerState) if f.name not in _NOT_WRITABLE
@@ -91,6 +92,7 @@ def slot_payload(controller: ExplorerController, slot: str) -> dict[str, Any] | 
         "n_atoms": int(molecule.n_atoms),
         "smiles": getattr(molecule, "smiles", "") or "",
         "qc_pass": None if flags is None else bool(flags.qc_pass),
+        "split": controller.split_of(loaded.key),
     }
 
 
@@ -124,6 +126,16 @@ def subsample_label(controller: ExplorerController) -> str:
     return f"{shown}% subsample"
 
 
+def beta_source_options(controller: ExplorerController) -> list[dict[str, Any]]:
+    """The β-source menu: the dataset, then each trained model with its score."""
+    options: list[dict[str, Any]] = [{"value": DATASET_SOURCE, "label": "dataset (DFT)"}]
+    for name, info in controller.models.infos().items():
+        mae = info.test_mae()
+        carbon = f" — C test MAE {mae['C']:.2f} ‰" if "C" in mae else ""
+        options.append({"value": name, "label": f"model: {info.label}{carbon}", "test_mae": mae})
+    return options
+
+
 def state_payload(controller: ExplorerController) -> dict[str, Any]:
     """Everything a client needs to draw every control, plus why.
 
@@ -142,6 +154,8 @@ def state_payload(controller: ExplorerController) -> dict[str, Any]:
         "dataset": controller.dataset,
         "datasets": list(controller.available_datasets()),
         "subsample": subsample_label(controller),
+        "beta_source": state.beta_source,
+        "beta_sources": beta_source_options(controller),
         "temperatures": [float(t) for t in grid],
         "on_grid": state.temperature_is_on_grid(controller.temperatures),
         "elements": list(ELEMENTS),

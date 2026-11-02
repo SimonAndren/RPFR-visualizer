@@ -24,6 +24,10 @@ ReferenceMode = Literal["none", "element_mean", "standard", "mol_b", "self"]
 #: Elements carrying RPFR data in these datasets.
 ELEMENTS: tuple[str, ...] = ("H", "C", "N", "O")
 
+#: The β source meaning "the values stored in the file". Any other source is the
+#: name of a trained empirical model.
+DATASET_SOURCE = "dataset"
+
 
 @dataclass(frozen=True)
 class LoadedMolecule:
@@ -44,6 +48,8 @@ class ExplorerState:
     """Everything the user has chosen. No widgets, no data, no I/O."""
 
     dataset: str = ""
+    #: Where β come from: :data:`DATASET_SOURCE` or a trained model's name.
+    beta_source: str = DATASET_SOURCE
 
     # Selection
     mol_a: LoadedMolecule | None = None
@@ -115,4 +121,4 @@ class ExplorerState:
         return f"{self.kind.value} @ {self.temperature:g} K"
 
 
-__all__ = ["ELEMENTS", "ExplorerState", "LoadedMolecule", "ReferenceMode"]
+__all__ = ["DATASET_SOURCE", "ELEMENTS", "ExplorerState", "LoadedMolecule", "ReferenceMode"]

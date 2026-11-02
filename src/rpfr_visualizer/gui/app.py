@@ -345,6 +345,18 @@ def _post_dataset(session: ExplorerSession, params: dict[str, str], body: Any) -
     return json_response(session.snapshot())
 
 
+@route("POST", "/api/source")
+def _post_source(session: ExplorerSession, params: dict[str, str], body: Any) -> Response:
+    """Take β from the dataset or a trained model. Reloads what is loaded."""
+    name = body.get("name")
+    if not name:
+        raise ValueError("Which β source? Pass a name.")
+    with session.use() as controller:
+        controller.use_beta_source(str(name))
+        session.touch(payloads.state_payload)
+    return json_response(session.snapshot())
+
+
 # ------------------------------------------------------------------ selection
 
 

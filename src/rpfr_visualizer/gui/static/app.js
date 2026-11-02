@@ -141,7 +141,7 @@ function fillSelect(select, options, current) {
   }
 }
 
-//: The option value that means "not one of the stored temperatures".
+// The option value that means "not one of the stored temperatures".
 const CUSTOM_TEMPERATURE = 'custom';
 
 // 273.15 and 298.15 are the ones a chemist reaches for; say why.
@@ -152,6 +152,10 @@ function temperatureLabel(t) {
   return note ? `${t} K (${note})` : `${t} K`;
 }
 
+// How each split reads on the badge. A training molecule's prediction is not
+// evidence of how well a model generalises; a test molecule's is.
+const SPLIT_LABELS = { train: 'training set', val: 'validation set', test: 'test set' };
+
 function applyState(next) {
   state = next;
   if (!next.ready) { return; }
@@ -160,6 +164,18 @@ function applyState(next) {
   fillSelect($('dataset'), next.datasets.map((d) => ({ value: d, label: d })), next.dataset);
   $('dataset-subsample').textContent = next.subsample || '';
   $('dataset-subsample').hidden = !next.subsample;
+  // Only offered once a model has been trained: a menu with one entry is noise.
+  const sources = next.beta_sources || [];
+  $('source-chip').hidden = sources.length < 2;
+  fillSelect($('beta-source'), sources.map((s) => ({ value: s.value, label: s.label })),
+    next.beta_source);
+  const split = next.slots.a && next.slots.a.split;
+  $('split-badge').hidden = !split;
+  $('split-badge').textContent = split ? SPLIT_LABELS[split] : '';
+  $('split-badge').dataset.split = split || '';
+  $('split-badge').title = split
+    ? 'Which part of the models\' train / validation / test split this molecule is in.'
+    : '';
   fillSelect($('element'),
     [{ value: '', label: 'all elements' }].concat(next.elements.map((e) => ({ value: e, label: e }))),
     settings.element ?? '');
@@ -1308,6 +1324,14 @@ function wire() {
   $('show_labels').onchange = (e) => setState({ show_labels: e.target.checked });
   $('beta_method').onchange = (e) => setState({ beta_method: e.target.value });
   $('top_n').onchange = (e) => setState({ top_n: Number(e.target.value) });
+
+  $('beta-source').onchange = async (event) => {
+    try {
+      applyState(await api('POST', '/api/source', { name: event.target.value }));
+      await render();
+      if (!$('download-view').hidden) { await loadDownloadPreview(); }
+    } catch (error) { fail(error); }
+  };
 
   $('dataset').onchange = async (event) => {
     try {
