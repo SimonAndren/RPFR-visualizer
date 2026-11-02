@@ -112,7 +112,7 @@ quoting any of them.
   13-point schema 2.0 file rather than attaching its columns to the wrong
   temperatures.
 
-The CSV download has a `beta_source` column (`dataset` or
+The CSV download has a `beta_source` column (`dft` or
 `model:<name>`), so a model export can always be told apart from a dataset
 export.
 
