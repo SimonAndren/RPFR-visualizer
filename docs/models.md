@@ -33,13 +33,13 @@ molecule does.
 
 ## Training
 
-The split needs the full file, `qm9s_rpfr_v2.2.h5`, which has enough molecules
+The split needs the full file, `qm9s_rpfr_v2.6.h5`, which has enough molecules
 for 100k + 24k:
 
 ```bash
-rpfr-visualizer models split --data /path/to/qm9s_rpfr_v2.2.h5 --out data/models/split.json
+rpfr-visualizer models split --data /path/to/qm9s_rpfr_v2.6.h5 --out data/models/split.json
 rpfr-visualizer models train bond_additivity cluster_mean \
-    --data /path/to/qm9s_rpfr_v2.2.h5 --split data/models/split.json
+    --data /path/to/qm9s_rpfr_v2.6.h5 --split data/models/split.json
 rpfr-visualizer models list --dir data/models
 ```
 
@@ -50,7 +50,7 @@ The explorer looks for models in `<data dir>/models`.
 To try the workflow on the 1% subsample, scale the split down:
 
 ```bash
-rpfr-visualizer models split --data data/raw/qm9s_v2.2_1pt.h5 --n-train 1000 --n-test 240
+rpfr-visualizer models split --data data/raw/qm9s_v2.6_1pt.h5 --n-train 1000 --n-test 240
 ```
 
 ## Models

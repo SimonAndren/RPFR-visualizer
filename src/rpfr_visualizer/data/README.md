@@ -12,6 +12,6 @@ That gives:
     data/cache/qm9s_rpfr_index.sqlite    the search index over that file
 
 For the full dataset, point $RPFR_VISUALIZER_DRIVE (or --drive) at the folder
-holding qm9s/qm9s_rpfr_v2.2.h5. To cut your own subsample from it:
+holding qm9s/qm9s_rpfr_v*.h5 (the newest is used). To cut your own subsample from it:
 
     uv run python scripts/make_subsample.py

@@ -164,6 +164,11 @@ function applyState(next) {
   fillSelect($('dataset'), next.datasets.map((d) => ({ value: d, label: d })), next.dataset);
   $('dataset-subsample').textContent = next.subsample || '';
   $('dataset-subsample').hidden = !next.subsample;
+  // From the data, never written down: the grid was 13, then 15, now 72 points.
+  const grid = next.temperatures || [];
+  $('guide-grid').textContent = grid.length
+    ? `${grid.length} temperatures from ${fmtTick(Math.min(...grid))} to ${fmtTick(Math.max(...grid))} K`
+    : 'every stored temperature';
   // Only offered once a model has been trained: a menu with one entry is noise.
   const sources = next.beta_sources || [];
   $('source-chip').hidden = sources.length < 2;
@@ -503,11 +508,15 @@ function lineChart(series, options) {
         class: 'line', stroke: color, 'stroke-dasharray': '', points: pts.join(' '),
       }));
     }
+    // Markers shrink as the grid densifies: 72 stored points 5 px apart at full
+    // size merge into a second, thicker line instead of marking anything.
+    const spacing = plotW / Math.max(s.temperatures.length - 1, 1);
+    const radius = Math.max(1.5, Math.min(4, spacing / 3));
     s.temperatures.forEach((t, k) => {
       const v = s.values[k];
       if (!Number.isFinite(v) || (opts.log && v <= 0)) { return; }
       svg.appendChild(svgEl('circle', {
-        class: 'marker', cx: sx(t), cy: sy(v), r: 4, fill: color,
+        class: 'marker', cx: sx(t), cy: sy(v), r: radius, fill: color,
       }));
     });
   });

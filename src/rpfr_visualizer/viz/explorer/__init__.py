@@ -16,7 +16,6 @@ from __future__ import annotations
 
 from rpfr_visualizer.viz.explorer.controller import ExplorerController, RenderPayload
 from rpfr_visualizer.viz.explorer.factory import (
-    PREFERRED_DATASET,
     controller_for_data_dir,
     controller_for_drive,
     preferred_dataset,
@@ -35,7 +34,6 @@ from rpfr_visualizer.viz.explorer.view import (
 
 __all__ = [
     "ELEMENTS",
-    "PREFERRED_DATASET",
     "ExplorerController",
     "ExplorerState",
     "ExplorerView",

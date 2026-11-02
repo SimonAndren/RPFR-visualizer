@@ -14,7 +14,6 @@ import pytest
 
 from rpfr_visualizer.io.providers import DatasetCatalog
 from rpfr_visualizer.viz.explorer.factory import (
-    PREFERRED_DATASET,
     controller_for_data_dir,
     controller_for_drive,
     preferred_dataset,
@@ -37,11 +36,12 @@ def data_dir(synthetic_h5_path: Path, tmp_path: Path) -> Path:
 def test_prefers_the_current_release_over_the_first_registered_dataset() -> None:
     """An older QM9s file sorting first must not be what the app opens on."""
     catalog = DatasetCatalog()
-    for name in ("qm9s", "qm9s_skip", "qm9s_v2.2"):
+    for name in ("qm9s", "qm9s_skip", "qm9s_v2.10", "qm9s_v2.2", "qm9s_v2.6"):
         catalog.register_provider(name, _stub_provider(name))
 
     assert catalog.datasets[0] == "qm9s"
-    assert preferred_dataset(catalog) == PREFERRED_DATASET == "qm9s_v2.2"
+    # Numerically, not as text: 2.10 is newer than 2.6.
+    assert preferred_dataset(catalog) == "qm9s_v2.10"
     assert preferred_dataset(catalog, "qm9s_skip") == "qm9s_skip"
 
 
@@ -369,6 +369,40 @@ def test_dataset_names_ignore_the_subsample_marker() -> None:
 
     # _1pt must not be stripped out of _1pct and leave a stray "c" behind.
     assert dataset_name_for("qm9s_v2.2_1pct.h5") == "qm9s_v2.2"
+
+    # Any release, not just the one that was current when this was written.
+    assert dataset_name_for("qm9s_rpfr_v2.6.h5") == "qm9s_v2.6"
+    assert dataset_name_for("qm9s_v2.6_1pt.h5") == "qm9s_v2.6"
+
+
+def test_drive_catalog_registers_only_the_newest_release(
+    synthetic_h5_path: Path, tmp_path: Path
+) -> None:
+    from rpfr_visualizer.io.molecule_index import register_drive_catalog
+
+    folder = tmp_path / "qm9s"
+    folder.mkdir()
+    for version in ("2.2", "2.6", "2.10"):
+        shutil.copy(synthetic_h5_path, folder / f"qm9s_rpfr_v{version}.h5")
+    (folder / "._qm9s_rpfr_v9.9.h5").write_bytes(b"AppleDouble junk")
+
+    catalog = register_drive_catalog(tmp_path)
+    assert catalog.datasets == ("qm9s_v2.10",)
+
+
+def test_drive_is_found_on_a_mounted_disk(tmp_path: Path, monkeypatch) -> None:
+    from rpfr_visualizer.io import molecule_index as mi
+
+    monkeypatch.delenv(mi.DRIVE_ROOT_ENV, raising=False)
+    monkeypatch.setattr(mi, "DEFAULT_DRIVE_ROOT", tmp_path / "home" / "absent")
+    monkeypatch.setattr(mi, "VOLUMES_DIR", tmp_path / "Volumes")
+    (tmp_path / "Volumes" / "Other").mkdir(parents=True)
+    expected = tmp_path / "Volumes" / "T7 Shield" / mi.DRIVE_LAYOUT
+    expected.mkdir(parents=True)
+
+    assert mi.default_drive_root() == expected
+    monkeypatch.setenv(mi.DRIVE_ROOT_ENV, str(tmp_path / "explicit"))
+    assert mi.default_drive_root() == tmp_path / "explicit"
 
 
 def test_loose_h5_files_open_with_the_same_names_as_the_repo_layout(

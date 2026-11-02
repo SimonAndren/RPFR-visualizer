@@ -401,8 +401,16 @@ def test_index_manual_entry_search() -> None:
     assert hits[0].match_type == "key_substring"
 
 
+@pytest.fixture
+def no_mounted_drive(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Hide any real disk under /Volumes, so the fallback is what is tested."""
+    import rpfr_visualizer.io.molecule_index as mi
+
+    monkeypatch.setattr(mi, "VOLUMES_DIR", tmp_path / "no-volumes")
+
+
 def test_default_drive_root_falls_back_to_the_bundled_layout(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, no_mounted_drive: None
 ) -> None:
     monkeypatch.delenv(DRIVE_ROOT_ENV, raising=False)
     assert default_drive_root() == DEFAULT_DRIVE_ROOT
@@ -416,7 +424,7 @@ def test_default_drive_root_honours_the_environment(
 
 
 def test_default_drive_root_ignores_an_empty_override(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, no_mounted_drive: None
 ) -> None:
     """An exported-but-empty variable is not a path; it means "unset"."""
     monkeypatch.setenv(DRIVE_ROOT_ENV, "")

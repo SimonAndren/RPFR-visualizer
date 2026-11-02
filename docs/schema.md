@@ -1,4 +1,4 @@
-# QM9s-RPFR HDF5 Schema (2.2)
+# QM9s-RPFR HDF5 Schema (2.6)
 
 Authoritative field documentation for the QM9s-RPFR processed HDF5 format.
 
@@ -7,15 +7,16 @@ Authoritative field documentation for the QM9s-RPFR processed HDF5 format.
 Each HDF5 file contains one group per molecule, keyed by numeric molecule ID
 (e.g. `"1"`, `"100"`, `"129817"`). Root-level attributes describe the file
 provenance; the root dataset `/temperatures` holds the temperature grid.
-Schema 2.0 and 2.1 files, with a 13-point grid, are still read.
+Every schema from 2.0 is read: the grid is taken from the file, whatever its
+length, and nothing in the package assumes a particular one.
 
 ## Root attributes
 
 | Attribute | Type | Description |
 |-----------|------|-------------|
-| `schema_version` | str | Schema version (currently `"2.2"`) |
+| `schema_version` | str | Schema version (currently `"2.6"`) |
 | `dataset` | str | Source dataset name (`qm9s`) |
-| `temperatures_K` | JSON str | Temperature grid in Kelvin (2.2 also stores it as the `/temperatures` dataset) |
+| `temperatures_K` | JSON str | Temperature grid in Kelvin; 2.0–2.2 only. From 2.3 the grid is only the `/temperatures` dataset |
 | `coordinate_units` | str | Cartesian coordinate units (`Angstrom`) |
 | `hessian_units` | str | Hessian units when present |
 | `isotope_table` | str | Isotope mass table identifier |
@@ -29,13 +30,23 @@ Schema 2.0 and 2.1 files, with a 13-point grid, are still read.
 
 ## Temperature grid
 
-15 temperatures in Kelvin, ascending (schema 2.2):
+72 temperatures in Kelvin, ascending (schema 2.6):
 
 ```
-20, 60, 100, 140, 180, 220, 260, 273.15, 298.15, 300, 340, 380, 420, 460, 500
+10 to 500 every 10, 525 to 1000 every 25, plus 273.15 and 298.15
 ```
 
-Schema 2.0 and 2.1 stored 13 (no 460 or 500 K), with 273.15 and 298.15 last.
+The values are identical to 2.5 on every temperature the two share; 2.6 only
+adds points. Earlier grids:
+
+| Schema | Points | Range |
+|--------|--------|-------|
+| 2.6 | 72 | 10–1000 K |
+| 2.5 | 68 | 10–1020 K |
+| 2.4 | 67 | 20–1020 K |
+| 2.3 | 19 | 20–1020 K |
+| 2.2 | 15 | 20–500 K |
+| 2.0, 2.1 | 13 | 20–420 K, with 273.15 and 298.15 stored last |
 
 ## Molecule group attributes
 
@@ -74,7 +85,7 @@ Schema 2.0 and 2.1 stored 13 (no 460 or 500 K), with 273.15 and 298.15 last.
 | `all_frequencies` | (3N,) | All vibrational frequencies (skip spectrum) | cm^-1 |
 | `harmonic_frequencies` | (3N-6,) or (3N-5,) | Eckart-projected harmonic frequencies (TR removed) | cm^-1 |
 
-T is the number of stored temperatures: 15 in schema 2.2, 13 before.
+T is the number of stored temperatures: 72 in schema 2.6 (see the table above).
 
 ## In-memory record model (Phase 1)
 
@@ -126,8 +137,14 @@ semantics (skip vs Eckart), and clumping-factor thresholds.
 
 | File | Description |
 |------|-------------|
-| `qm9s_rpfr_v2.2.h5` | Full QM9s, schema 2.2, Eckart-projected |
-| `qm9s_v2.2_1pt.h5` | 1% subsample of it (1,298 molecules), the published tier |
+| `qm9s_rpfr_v2.6.h5` | Full QM9s, schema 2.6, Eckart-projected (129,817 molecules, ~20 GB) |
+| `qm9s_rpfr_v2.2.h5` … `v2.5.h5` | Earlier releases, kept beside it on the drive |
+| `qm9s_v2.6_1pt.h5` | 1% subsample of 2.6 (1,298 molecules) |
+| `qm9s_v2.2_1pt.h5` | 1% subsample of 2.2, the published tier |
+
+On a drive, the newest `qm9s/qm9s_rpfr_v*.h5` is the one opened. Every file
+registers under a versioned dataset name (`qm9s_v2.6`); a subsample and its
+full file share one name.
 | `qm9s_tr_project.h5`, `qm9s_tr_skip.h5` | Schema 2.0 files, still readable |
 
 Generate the subsample:

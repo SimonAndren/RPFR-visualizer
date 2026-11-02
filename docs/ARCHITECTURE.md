@@ -14,7 +14,7 @@ serves a local browser explorer over the same Python API.
                                          |
                               io/ (QM9sDataset, providers)
                                          |
-                               local HDF5, schema 2.2
+                          local HDF5, schema 2.0 to 2.6
 ```
 
 The dependency runs one way: `gui/` uses `viz/`, `viz/` uses `analysis/` and

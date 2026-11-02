@@ -21,9 +21,9 @@ Manage the search index::
 
 Train empirical models (100k train / 24k test / the rest for validation)::
 
-    rpfr-visualizer models split --data qm9s_rpfr_v2.2.h5 --out data/models/split.json
+    rpfr-visualizer models split --data qm9s_rpfr_v2.6.h5 --out data/models/split.json
     rpfr-visualizer models train bond_additivity cluster_mean \\
-        --data qm9s_rpfr_v2.2.h5 --split data/models/split.json --out data/models
+        --data qm9s_rpfr_v2.6.h5 --split data/models/split.json --out data/models
     rpfr-visualizer models list --dir data/models
 """
 
@@ -317,8 +317,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="run on a generated five-molecule dataset; needs no data files",
     )
-    gui.add_argument("--drive", default=None, help="folder holding qm9s/qm9s_rpfr_v2.2.h5")
-    gui.add_argument("--dataset", default=None, help="dataset to open (default: qm9s_v2.2)")
+    gui.add_argument(
+        "--drive", default=None, help="folder holding qm9s/qm9s_rpfr_v*.h5 (newest is opened)"
+    )
+    gui.add_argument(
+        "--dataset", default=None, help="dataset to open (default: the newest qm9s_vX.Y)"
+    )
     gui.add_argument("--host", default="127.0.0.1", help="loopback address to bind")
     gui.add_argument("--port", type=int, default=8765, help="port (0 picks any free one)")
     gui.add_argument("--no-browser", action="store_true", help="do not open a browser")
@@ -361,7 +365,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     build = index_sub.add_parser("build", help="build an index from HDF5 datasets")
     build.add_argument("--raw", default="data/raw", help="directory of HDF5 subsamples")
-    build.add_argument("--drive", default=None, help="folder holding qm9s/qm9s_rpfr_v2.2.h5")
+    build.add_argument(
+        "--drive", default=None, help="folder holding qm9s/qm9s_rpfr_v*.h5 (newest is used)"
+    )
     build.add_argument(
         "--out", default=None, help=f"output path (default data/cache/{INDEX_FILENAME})"
     )
