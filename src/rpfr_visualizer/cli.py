@@ -18,6 +18,13 @@ Manage the search index::
     rpfr-visualizer index build --raw data/raw --out data/cache/qm9s_rpfr_index.sqlite
     rpfr-visualizer index info  data/cache/qm9s_rpfr_index.sqlite
     rpfr-visualizer index verify data/cache/qm9s_rpfr_index.sqlite --raw data/raw
+
+Train empirical models (100k train / 24k test / the rest for validation)::
+
+    rpfr-visualizer models split --data qm9s_rpfr_v2.2.h5 --out data/models/split.json
+    rpfr-visualizer models train bond_additivity cluster_mean \\
+        --data qm9s_rpfr_v2.2.h5 --split data/models/split.json --out data/models
+    rpfr-visualizer models list --dir data/models
 """
 
 from __future__ import annotations
@@ -139,6 +146,59 @@ def _cmd_index_verify(args: argparse.Namespace) -> int:
             print(f"  - {problem}", file=sys.stderr)
         return 1
     print("\nOK")
+    return 0
+
+
+def _cmd_models_split(args: argparse.Namespace) -> int:
+    from rpfr_visualizer.empirical import split_hdf5
+
+    try:
+        split = split_hdf5(args.data, n_train=args.n_train, n_test=args.n_test, seed=args.seed)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
+    path = split.save(args.out)
+    sizes = split.sizes
+    print(
+        f"{sizes['train']:,} train, {sizes['val']:,} validation, {sizes['test']:,} test "
+        f"molecules (seed {split.seed}); {len(split.excluded):,} excluded"
+    )
+    print(f"wrote {path}  (fingerprint {split.fingerprint})")
+    return 0
+
+
+def _cmd_models_train(args: argparse.Namespace) -> int:
+    from tqdm import tqdm
+
+    from rpfr_visualizer.empirical import DatasetSplit, train_all
+
+    split = DatasetSplit.load(args.split)
+    out = Path(args.out) if args.out else Path(args.split).parent
+
+    def progress(keys):
+        return tqdm(keys, desc="reading molecules", unit="mol", disable=args.quiet)
+
+    try:
+        train_all(args.kinds, args.data, split, out, progress=progress)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
+    return 0
+
+
+def _cmd_models_list(args: argparse.Namespace) -> int:
+    from rpfr_visualizer.empirical import ModelStore, format_scores
+
+    store = ModelStore(args.dir)
+    infos = store.infos()
+    if not infos:
+        print(f"No models in {args.dir}. Train some with `rpfr-visualizer models train`.")
+        return 1
+    split = store.split
+    for name, info in infos.items():
+        trained_on = (info.meta.get("split") or {}).get("fingerprint")
+        note = "" if split and trained_on == split.fingerprint else "  (split not found here)"
+        print(f"{name}  [{info.kind}]  {info.path.name}{note}")
+        print(format_scores(info.meta))
+        print()
     return 0
 
 
@@ -323,6 +383,31 @@ def build_parser() -> argparse.ArgumentParser:
     verify.add_argument("--raw", default=None, help="cross-check against HDF5 files here")
     verify.add_argument("--drive", default=None, help="cross-check against the drive root")
     verify.set_defaults(func=_cmd_index_verify)
+
+    models = sub.add_parser("models", help="train and inspect empirical beta models")
+    models_sub = models.add_subparsers(dest="models_command", required=True)
+
+    split = models_sub.add_parser("split", help="write the train/validation/test split")
+    split.add_argument("--data", required=True, help="the full QM9s-RPFR .h5 file")
+    split.add_argument("--out", default="data/models/split.json", help="where to write it")
+    split.add_argument("--n-train", type=int, default=100_000, help="training molecules")
+    split.add_argument("--n-test", type=int, default=24_000, help="test molecules")
+    split.add_argument("--seed", type=int, default=0, help="shuffle seed")
+    split.set_defaults(func=_cmd_models_split)
+
+    train = models_sub.add_parser("train", help="fit, tune on validation, score on test")
+    train.add_argument(
+        "kinds", nargs="+", help="model kinds to train: bond_additivity, cluster_mean"
+    )
+    train.add_argument("--data", required=True, help="the .h5 file the split was made from")
+    train.add_argument("--split", default="data/models/split.json", help="split file")
+    train.add_argument("--out", default=None, help="output directory (default: beside --split)")
+    train.add_argument("-q", "--quiet", action="store_true", help="no progress bar")
+    train.set_defaults(func=_cmd_models_train)
+
+    listing = models_sub.add_parser("list", help="show trained models and their test scores")
+    listing.add_argument("--dir", default="data/models", help="model directory")
+    listing.set_defaults(func=_cmd_models_list)
 
     return parser
 
