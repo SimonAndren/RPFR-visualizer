@@ -20,6 +20,7 @@ from rpfr_visualizer.io.molecule_index import (
     MoleculeIndex,
     dataset_name_for,
     default_drive_root,
+    newest_versioned,
     register_all,
     register_drive_catalog,
     register_subsample_catalog,
@@ -27,10 +28,6 @@ from rpfr_visualizer.io.molecule_index import (
 from rpfr_visualizer.io.providers import DatasetCatalog, HDF5Provider
 from rpfr_visualizer.io.search import find_index, open_index
 from rpfr_visualizer.viz.explorer.controller import ExplorerController
-
-#: Opened in preference to whatever happens to be first in a catalog: the
-#: current QM9s release, ahead of any older QM9s file in the same folder.
-PREFERRED_DATASET = "qm9s_v2.2"
 
 
 def _datasets(n: int) -> str:
@@ -41,8 +38,9 @@ def _datasets(n: int) -> str:
 def preferred_dataset(catalog: DatasetCatalog, requested: str | None = None) -> str:
     """Pick which dataset to open.
 
-    An explicit request wins. Otherwise prefer :data:`PREFERRED_DATASET`, then
-    fall back to the first registered dataset.
+    An explicit request wins. Otherwise prefer the newest versioned QM9s
+    release (``qm9s_v2.6`` over ``qm9s_v2.2``), then fall back to the first
+    registered dataset.
     """
     names = catalog.datasets
     if not names:
@@ -51,7 +49,7 @@ def preferred_dataset(catalog: DatasetCatalog, requested: str | None = None) -> 
         if requested not in names:
             raise KeyError(f"Dataset {requested!r} not in catalog. Available: {', '.join(names)}")
         return requested
-    return PREFERRED_DATASET if PREFERRED_DATASET in names else names[0]
+    return newest_versioned(names) or names[0]
 
 
 def _open_index_or_none(
@@ -452,7 +450,6 @@ def controller_for_drive(
 
 
 __all__ = [
-    "PREFERRED_DATASET",
     "best_index_for",
     "catalog_for_path",
     "controller_for_data_dir",

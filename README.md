@@ -6,7 +6,7 @@
 
 A browser explorer for the **QM9s-RPFR** database: reduced partition function
 ratios (β) for every atom of the QM9s molecules, from DFT harmonic frequencies,
-at 15 temperatures from 20 to 500 K.
+at up to 72 temperatures from 10 to 1000 K (schema 2.6).
 
 Search by name, formula, SMILES or functional group. See β, α or 1000 ln α on
 the 3D structure and a 2D skeleton, rank sites, follow β with temperature,
@@ -43,8 +43,10 @@ rpfr-visualizer gui --data data
 No data yet? `rpfr-visualizer gui --demo` opens five synthetic molecules. Their
 numbers are invented; they show the interface, not the chemistry.
 
-The full QM9s v2.2 file works too. Point `--drive` (or `$RPFR_VISUALIZER_DRIVE`)
-at the folder holding `qm9s/qm9s_rpfr_v2.2.h5`, and build an index once:
+The full QM9s file works too. Point `--drive` (or `$RPFR_VISUALIZER_DRIVE`) at
+the folder holding `qm9s/qm9s_rpfr_v*.h5` and the newest release is opened. A
+disk mounted with `RPFR-Datasets/Processed-Data` at its top level is found
+without either. Build an index once:
 
 ```bash
 rpfr-visualizer index build --drive /path/to/Processed-Data --out data/cache/qm9s_rpfr_full_index.sqlite
@@ -62,7 +64,7 @@ rpfr-visualizer gui --drive /path/to/Processed-Data --index data/cache/qm9s_rpfr
 | [docs/quickstart.ipynb](docs/quickstart.ipynb) | Load a file, read β, compute statistics |
 | [docs/models.md](docs/models.md) | Empirical models: the train/validation/test protocol, training, scores |
 | [docs/search.md](docs/search.md) | Query grammar and the search index |
-| [docs/schema.md](docs/schema.md) | HDF5 field reference (schema 2.2) |
+| [docs/schema.md](docs/schema.md) | HDF5 field reference (schema 2.6) |
 | [docs/qc.md](docs/qc.md) | QC checks, tiers and thresholds |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | How the package is layered |
 

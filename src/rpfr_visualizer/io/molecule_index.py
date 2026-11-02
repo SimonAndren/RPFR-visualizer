@@ -19,7 +19,8 @@ from __future__ import annotations
 
 import json
 import os
-from collections.abc import Iterator, Sequence
+import re
+from collections.abc import Iterable, Iterator, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -59,6 +60,12 @@ DRIVE_ROOT_ENV = "RPFR_VISUALIZER_DRIVE"
 #: given. A guess, not a contract: set the variable or pass the path.
 DEFAULT_DRIVE_ROOT = Path.home() / "RPFR-Datasets" / "Processed-Data"
 
+#: The same layout on a mounted external disk: ``/Volumes/<disk>/`` + this.
+DRIVE_LAYOUT = Path("RPFR-Datasets") / "Processed-Data"
+
+#: Where macOS mounts external disks.
+VOLUMES_DIR = Path("/Volumes")
+
 
 def default_drive_root() -> Path:
     """Where to look for the full datasets when no drive root is given.
@@ -67,11 +74,26 @@ def default_drive_root() -> Path:
     the variable works without reimporting the package.
 
     Returns:
-        The path from the environment if set and non-empty, else
-        :data:`DEFAULT_DRIVE_ROOT`.
+        The path from the environment if set and non-empty; else
+        :data:`DEFAULT_DRIVE_ROOT` if it exists; else the first mounted disk
+        carrying :data:`DRIVE_LAYOUT` at its top level; else
+        :data:`DEFAULT_DRIVE_ROOT`, so the error names a sensible place.
     """
     override = os.environ.get(DRIVE_ROOT_ENV)
-    return Path(override) if override else DEFAULT_DRIVE_ROOT
+    if override:
+        return Path(override)
+    if DEFAULT_DRIVE_ROOT.exists():
+        return DEFAULT_DRIVE_ROOT
+    # One listing of the mount point and one stat per disk; never a walk.
+    try:
+        volumes = sorted(VOLUMES_DIR.iterdir())
+    except OSError:
+        volumes = []
+    for volume in volumes:
+        candidate = volume / DRIVE_LAYOUT
+        if candidate.is_dir():
+            return candidate
+    return DEFAULT_DRIVE_ROOT
 
 
 #: Version of the legacy JSON entry cache (distinct from the SQLite
@@ -698,11 +720,29 @@ def build_or_load_index(
 _NAME_SUFFIXES: tuple[tuple[str, str], ...] = (
     ("_tr_project", ""),
     ("_tr_skip", "_skip"),
-    # Schema 2.2 dropped the tr_ naming; the full file is qm9s_rpfr_v2.2.h5 and
-    # the subsample qm9s_v2.2_1pt.h5, and both have to land on qm9s_v2.2 or the
-    # release tier and the full index become two unrelated datasets.
-    ("qm9s_rpfr_v2.2", "qm9s_v2.2"),
 )
+
+#: Schema 2.2 dropped the tr_ naming; the full file is ``qm9s_rpfr_v2.6.h5`` and
+#: a subsample ``qm9s_v2.6_1pt.h5``, and both have to land on ``qm9s_v2.6`` or
+#: the release tier and the full index become two unrelated datasets. Matched
+#: for any version, so a new release needs no code change.
+_VERSIONED_FULL = re.compile(r"qm9s_rpfr_v(\d+(?:\.\d+)*)")
+
+#: A versioned QM9s dataset name, e.g. ``qm9s_v2.6``.
+_VERSIONED_NAME = re.compile(r"^qm9s_v(\d+(?:\.\d+)*)$")
+
+
+def dataset_version(name: str) -> tuple[int, ...] | None:
+    """``(2, 6)`` for ``qm9s_v2.6``; None for a name that carries no version."""
+    match = _VERSIONED_NAME.match(name)
+    return tuple(int(p) for p in match.group(1).split(".")) if match else None
+
+
+def newest_versioned(names: Iterable[str]) -> str | None:
+    """The highest-versioned ``qm9s_vX.Y`` among *names*, if any."""
+    versioned = [(v, n) for n in names if (v := dataset_version(n)) is not None]
+    return max(versioned)[1] if versioned else None
+
 
 #: Subsample markers stripped so a 1% file and the full file share one name.
 #: That is what lets a subsample index and a full index be ranked against each
@@ -735,6 +775,7 @@ def dataset_name_for(path: Path | str) -> str:
     name = Path(path).stem
     for fragment, replacement in _NAME_SUFFIXES:
         name = name.replace(fragment, replacement)
+    name = _VERSIONED_FULL.sub(r"qm9s_v\1", name)
     for marker in _SAMPLE_MARKERS:
         name = name.replace(marker, "")
     return name
@@ -777,21 +818,29 @@ def register_subsample_catalog(raw_dir) -> DatasetCatalog:
 def register_drive_catalog(
     drive_root: Path | str | None = None,
 ) -> DatasetCatalog:
-    """Register full dataset files from an external drive layout."""
+    """Register the newest full QM9s file from an external drive layout.
+
+    The drive keeps every release side by side (``qm9s/qm9s_rpfr_v2.2.h5`` up
+    to the current one), each 10-20 GB. Only the newest is registered: a search
+    index spans every registered dataset, and indexing five copies of QM9s to
+    reach one is not a trade anybody asked for. Pass the file itself to open an
+    older release.
+    """
     root = Path(drive_root) if drive_root else default_drive_root()
     if not root.exists():
         raise FileNotFoundError(
             f"External drive not found at {root}. "
             f"Connect it, pass drive_root=, or set ${DRIVE_ROOT_ENV}."
         )
-    mapping = {
-        "qm9s_v2.2": "qm9s/qm9s_rpfr_v2.2.h5",
+    by_name = {
+        dataset_name_for(path): path
+        for path in (root / "qm9s").glob("qm9s_rpfr_v*.h5")
+        if not path.name.startswith("._")
     }
     catalog = DatasetCatalog()
-    for name, rel in mapping.items():
-        path = root / rel
-        if path.exists():
-            catalog.register(name, path)
+    newest = newest_versioned(by_name)
+    if newest is not None:
+        catalog.register(newest, by_name[newest])
     if not catalog.datasets:
         raise FileNotFoundError(f"No HDF5 files found under {root}")
     return catalog

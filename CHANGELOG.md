@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   scoring on the test set
 - The explorer shows whether the open molecule is in the models' training,
   validation or test set. The CSV download has a `beta_source` column
+- Schema 2.6: the 72-point grid (10–1000 K) is read and drawn; any
+  `qm9s_rpfr_vX.Y.h5` registers as `qm9s_vX.Y`; the newest release on a drive
+  is the one opened and preferred; a drive mounted under `/Volumes/<disk>/` is
+  found without configuration
+
+### Fixed
+
+- `scripts/make_subsample.py` names its output after the source's version and
+  refuses to overwrite an existing file without `--force`. Its fixed default
+  output was the published v2.2 subsample
 
 ## [0.1.0] - 2026-10-01
 

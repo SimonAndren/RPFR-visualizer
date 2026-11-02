@@ -33,13 +33,13 @@ molecule does.
 
 ## Training
 
-The split needs the full file, `qm9s_rpfr_v2.2.h5`, which has enough molecules
+The split needs the full file, `qm9s_rpfr_v2.6.h5`, which has enough molecules
 for 100k + 24k:
 
 ```bash
-rpfr-visualizer models split --data /path/to/qm9s_rpfr_v2.2.h5 --out data/models/split.json
+rpfr-visualizer models split --data /path/to/qm9s_rpfr_v2.6.h5 --out data/models/split.json
 rpfr-visualizer models train bond_additivity cluster_mean \
-    --data /path/to/qm9s_rpfr_v2.2.h5 --split data/models/split.json
+    --data /path/to/qm9s_rpfr_v2.6.h5 --split data/models/split.json
 rpfr-visualizer models list --dir data/models
 ```
 
@@ -50,7 +50,7 @@ The explorer looks for models in `<data dir>/models`.
 To try the workflow on the 1% subsample, scale the split down:
 
 ```bash
-rpfr-visualizer models split --data data/raw/qm9s_v2.2_1pt.h5 --n-train 1000 --n-test 240
+rpfr-visualizer models split --data data/raw/qm9s_v2.6_1pt.h5 --n-train 1000 --n-test 240
 ```
 
 ## Models
@@ -89,16 +89,25 @@ For each element there is a mean absolute error and a root-mean-square error at
 every temperature, and MAE, RMSE and R² at 298.15 K. These are stored in the
 model file and shown by `models list`.
 
-For reference, the 1% subsample split (1,000 / 54 / 240 molecules) gives these
-test MAEs at 298 K, in ‰:
+Trained on full QM9s v2.6 (100,000 train / 5,366 validation / 24,000 test
+molecules, 432,230 test sites), test MAE in 1000 ln β (‰):
 
-| | C | H | N | O |
-|---|---|---|---|---|
-| bond additivity | 2.56 | 27.0 | 2.46 | 2.69 |
-| cluster mean | 2.12 | 21.6 | 2.58 | 1.96 |
+| Model | Element | 10 K | 100 K | 298 K | 500 K | 1000 K | R² at 298 K |
+|---|---|---|---|---|---|---|---|
+| bond additivity | C | 115.9 | 10.1 | 2.43 | 1.11 | 0.32 | 0.932 |
+| | H | 1067 | 100.3 | 26.6 | 12.3 | 4.12 | 0.830 |
+| | N | 93.0 | 8.33 | 2.24 | 1.08 | 0.34 | 0.923 |
+| | O | 136.1 | 10.6 | 2.41 | 1.12 | 0.34 | 0.892 |
+| cluster mean | C | 37.9 | 3.42 | 0.96 | 0.46 | 0.14 | 0.978 |
+| | H | 495.3 | 47.6 | 13.7 | 7.18 | 2.79 | 0.946 |
+| | N | 33.3 | 2.90 | 0.80 | 0.39 | 0.12 | 0.983 |
+| | O | 51.3 | 4.03 | 0.99 | 0.46 | 0.14 | 0.974 |
 
-These numbers are from a small training set. Train on the full file before
-quoting any of them.
+Validation chose depth 3 for bond additivity and `R_max = 5`,
+`min_count = 1` for cluster mean, for every element. With 100k training
+molecules, most test environments have an exact R5 match in training. The
+cluster-mean file is about 300 MB and takes a second or two to load the first
+time it is chosen.
 
 ## What a model does not provide
 
@@ -112,7 +121,7 @@ quoting any of them.
   13-point schema 2.0 file rather than attaching its columns to the wrong
   temperatures.
 
-The CSV download has a `beta_source` column (`dataset` or
+The CSV download has a `beta_source` column (`dft` or
 `model:<name>`), so a model export can always be told apart from a dataset
 export.
 

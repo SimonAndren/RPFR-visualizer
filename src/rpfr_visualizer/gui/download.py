@@ -58,7 +58,7 @@ CSV_COLUMNS: tuple[str, ...] = (
     "reference_beta",
     "reference_mode",
     "local_smiles",
-    #: ``dataset`` or ``model:<name>``: whether ``beta`` and ``value`` were read
+    #: ``dft`` or ``model:<name>``: whether ``beta`` and ``value`` were read
     #: from the file or predicted. Without it a model export and a dataset
     #: export are indistinguishable files.
     "beta_source",

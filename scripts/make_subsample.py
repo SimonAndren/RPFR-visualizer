@@ -14,7 +14,11 @@ import h5py
 import numpy as np
 
 from rpfr_visualizer.io.loader import _molecule_keys
-from rpfr_visualizer.io.molecule_index import default_drive_root
+from rpfr_visualizer.io.molecule_index import (
+    dataset_name_for,
+    default_drive_root,
+    newest_versioned,
+)
 
 
 def _copy_attrs(src: h5py.AttributeManager, dst: h5py.AttributeManager) -> None:
@@ -32,6 +36,26 @@ def _copy_group(src: h5py.Group, dst: h5py.Group) -> None:
             _copy_group(item, dst.create_group(key))
         else:
             src.copy(item, dst, key)
+
+
+def newest_full_file(drive_root: Path) -> Path | None:
+    """The newest ``qm9s/qm9s_rpfr_v*.h5`` under *drive_root*, if any."""
+    files = {
+        dataset_name_for(p): p
+        for p in (drive_root / "qm9s").glob("qm9s_rpfr_v*.h5")
+        if not p.name.startswith("._")
+    }
+    newest = newest_versioned(files)
+    return files[newest] if newest else None
+
+
+def default_output(source: Path) -> Path:
+    """``data/raw/<dataset>_1pt.h5``: named after the source, never a fixed name.
+
+    A fixed default (it was ``qm9s_v2.2_1pt.h5``) meant cutting a subsample of a
+    newer release silently overwrote the published one.
+    """
+    return Path("data/raw") / f"{dataset_name_for(source)}_1pt.h5"
 
 
 def make_subsample(
@@ -81,14 +105,18 @@ def main() -> None:
     parser.add_argument(
         "--source",
         type=Path,
-        default=default_drive_root() / "qm9s" / "qm9s_tr_project.h5",
-        help="Path to the full QM9s-RPFR HDF5 file (default: under $RPFR_VISUALIZER_DRIVE).",
+        default=None,
+        help="Path to the full QM9s-RPFR HDF5 file (default: the newest qm9s_rpfr_v*.h5 "
+        "on the drive).",
     )
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path("data/raw/qm9s_v2.2_1pt.h5"),
-        help="Path for the subsampled output file.",
+        default=None,
+        help="Path for the subsampled output file (default: data/raw/<dataset>_1pt.h5).",
+    )
+    parser.add_argument(
+        "--force", action="store_true", help="overwrite the output file if it exists"
     )
     parser.add_argument(
         "--fraction",
@@ -104,8 +132,15 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    if args.source is None:
+        args.source = newest_full_file(default_drive_root())
+        if args.source is None:
+            raise SystemExit(f"No qm9s_rpfr_v*.h5 under {default_drive_root() / 'qm9s'}.")
     if not args.source.exists():
         raise FileNotFoundError(f"Source file not found: {args.source}")
+    args.output = args.output or default_output(args.source)
+    if args.output.exists() and not args.force:
+        raise SystemExit(f"{args.output} already exists. Pass --force to overwrite it.")
 
     n_copied = make_subsample(
         args.source,
